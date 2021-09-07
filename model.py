@@ -67,7 +67,20 @@ class ResidualBlock(nn.Module):
 
 
 class ScalePrediction(nn.Module):
-    pass
+    def __init__(self, in_channels, num_classes):
+        super().__init__()
+        self.pred = nn.Sequential(
+            CNNBlock(in_channels, 2*in_channels, kernel_size=3, padding=1),
+            CNNBlock(2*in_channels, 3 * (num_classes + 5) * 3, bn_act=False, kernel_size=1), #[po, x, y, w, h]
+        )
+        self.num_classes = num_classes
 
+    def forward(self, x):
+        return(
+            self.pred(x)
+            .reshape(x.shape[0], 3, self.num_classes + 5, x.shape[2], x.shape[3])
+            .permute(0, 1, 3, 4, 2) # dimension의 순서를 바꿔준다.
+        )
+        # ex> N x 3 x 13 x 13 x 5+num_classes
 class YOLOv3(nn.Module):
     pass
