@@ -59,18 +59,34 @@ class YOLODataset(Dataset):
         targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S]
 
         for box in bboxes:
-            iou_anchors = iou(torch.tensor(box[2:4]), self.anchors)
-            anchor_indices = iou_anchors.argsort(descending=True, dim=0)
+            iou_anchors = iou(torch.tensor(box[2:4]), self.anchors) # 1개의 GT box와 9개의 anchor 간의 w,h iou
+            anchor_indices = iou_anchors.argsort(descending=True, dim=0) #내림차순으로 정렬 
             x, y, width, height, class_label = box
             has_anchor = [False, False, False] # bboxes가 있는지 확인
 
-            for anchor_idx in anchor_indices:
+            for anchor_idx in anchor_indices: #GT와 iou가 큰 anchor 부터
                 scale_idx = anchor_idx // self.num_anchors_per_scale # 0, 1, 8->2 52x52를 의미
                 anchor_on_scale = anchor_idx % self.num_anchors_per_scale # 0, 1, 2
                 S = self.S[scale_idx]
+                # txt 파일에서 bbox가 Normalize 되었기 때문에 곱셈 수행.
                 i, j = int(S*y), int(S*x) # x = 0.5, S = 13 --> int(6.5) -> 6
                 anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0] # [anchor_idx, 행(y), 열(x), object probability]
 
                 if not anchor_taken and not has_anchor[scale_idx]:
-                    targets[scale_idx][anchor_on_scale, i, j, 0] = 0 = 1
-                    x_cell, y_cell = S*x - j # 6.5 - 6 = 0.5, both are between [0, 1]
+                    targets[scale_idx][anchor_on_scale, i, j, 0] = 1
+                    x_cell, y_cell = S*x - j, S*y - i # 6.5 - 6 = 0.5, both are between [0, 1]
+                    width_cell, height_cell = (
+                        width * S, # S = 13, width=0.5, 6.5
+                        height * S, 
+                    )
+                    box_coordinates = torch.tensor(
+                        [x_cell, y_cell, width_cell, height_cell]
+                    )
+                    targets[scale_idx][anchor_on_scale, i, j, 1:5] = box_coordinates
+                    targets[scale_idx][anchor_on_scale, i, j, 5] = int(class_label)
+                    has_anchor[scale_idx] = True
+                
+                elif not anchor_taken and iou_anchors[anchor_idx] > self.ignore_iou_thresh:
+                    targets[scale_idx][anchor_on_scale, i, j, 0] = -1 # 예측을 실패할 경우
+
+        return image, tuple(targets)
