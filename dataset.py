@@ -59,7 +59,7 @@ class YOLODataset(Dataset):
         targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S]
 
         for box in bboxes:
-            iou_anchors = iou(torch.tensor(box[2:4]), self.anchors) # 1개의 GT box와 9개의 anchor 간의 w,h iou
+            iou_anchors = iou(torch.tensor(box[2:4]),float(), self.anchors) # 1개의 GT box와 9개의 anchor 간의 w,h iou
             anchor_indices = iou_anchors.argsort(descending=True, dim=0) #내림차순으로 정렬 
             x, y, width, height, class_label = box
             has_anchor = [False, False, False] # bboxes가 있는지 확인
