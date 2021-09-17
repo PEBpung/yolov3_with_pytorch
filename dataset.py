@@ -1,4 +1,4 @@
-#import config
+import config
 import numpy as np
 import os
 import pandas as pd
@@ -7,8 +7,10 @@ import torch
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset, DataLoader
 from utils import (
+    cells_to_bboxes,
     iou_width_height as iou,
     non_max_suppression as nms,
+    plot_image
 )
 
 # 잘린 이미지를 띄우거나, np.array로 변환시 에러가 발생하는데, 이를 해결
@@ -45,7 +47,7 @@ class YOLODataset(Dataset):
         # np.roll : 첫번째 원소를 4칸 밀고 나머지를 앞으로 끌어옴  
         # (class, x, y, w, h) -> ( x, y, w, h, class)
         # 즉 label값을 0번째에서 4번째로 이동
-        bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndim=2), 4, axis=1).tolist()
+        bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist()
         img_path = os.path.join(self.img_dir, self.annotations.iloc[index, 0])
         image = np.array(Image.open(img_path).convert("RGB")) # type을 array로 변경해야된다.
 
@@ -59,7 +61,7 @@ class YOLODataset(Dataset):
         targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S]
 
         for box in bboxes:
-            iou_anchors = iou(torch.tensor(box[2:4]),float(), self.anchors) # 1개의 GT box와 9개의 anchor 간의 w,h iou
+            iou_anchors = iou(torch.tensor(box[2:4]).float(), self.anchors) # 1개의 GT box와 9개의 anchor 간의 w,h iou
             anchor_indices = iou_anchors.argsort(descending=True, dim=0) #내림차순으로 정렬 
             x, y, width, height, class_label = box
             has_anchor = [False, False, False] # bboxes가 있는지 확인
@@ -90,3 +92,39 @@ class YOLODataset(Dataset):
                     targets[scale_idx][anchor_on_scale, i, j, 0] = -1 # 예측을 실패할 경우
 
         return image, tuple(targets)
+
+def test():
+    anchors = config.ANCHORS
+
+    transform = config.test_transforms
+
+    dataset = YOLODataset(
+        "PASCAL_VOC/100examples.csv",
+        "PASCAL_VOC/images/",
+        "PASCAL_VOC/labels/",
+        S=[13, 26, 52],
+        anchors=anchors,
+        transform=transform,
+    )
+    S = [13, 26, 52]
+    scaled_anchors = torch.tensor(anchors) / (
+        1 / torch.tensor(S).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2)
+    )
+    loader = DataLoader(dataset=dataset, batch_size=1, shuffle=True)
+    for x, y in loader:
+        boxes = []
+
+        for i in range(y[0].shape[1]):
+            anchor = scaled_anchors[i]
+            print(anchor.shape)
+            print(y[i].shape)
+            boxes += cells_to_bboxes(
+                y[i], is_preds=False, S=y[i].shape[2], anchors=anchor
+            )[0]
+        boxes = nms(boxes, iou_threshold=1, threshold=0.7, box_format="midpoint")
+        print(boxes)
+        plot_image(x[0].permute(1, 2, 0).to("cpu"), boxes)
+
+
+if __name__ == "__main__":
+    test()
