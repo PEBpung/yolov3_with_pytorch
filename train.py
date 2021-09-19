@@ -51,8 +51,6 @@ def train_fn(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors):
         mean_loss = sum(losses) / len(losses)
         loop.set_postfix(loss=mean_loss)
 
-
-
 def main():
     model = YOLOv3(num_classes=config.NUM_CLASSES).to(config.DEVICE)
     optimizer = optim.Adam(
@@ -79,7 +77,6 @@ def main():
         #plot_couple_examples(model, test_loader, 0.6, 0.5, scaled_anchors)
         train_fn(test_loader, model, optimizer, loss_fn, scaler, scaled_anchors)
 
-
         if epoch > 0 and epoch % 3 == 0:
             check_class_accuracy(model, test_loader, threshold=config.CONF_THRESHOLD)
             pred_boxes, true_boxes = get_evaluation_bboxes(
@@ -98,7 +95,6 @@ def main():
             )
             print(f"MAP: {mapval.item()}")
             model.train()
-
 
 if __name__ == "__main__":
     main()
