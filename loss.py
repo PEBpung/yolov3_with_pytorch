@@ -24,7 +24,7 @@ class YoloLoss(nn.Module):
 
         # No object loss
         no_object_loss = self.bce(
-            (prediction[..., 0:1][noobj], (target[...,0:1][noobj]))
+            (prediction[..., 0:1][noobj]), (target[...,0:1][noobj])
         )
 
         # Object Loss 
@@ -44,7 +44,7 @@ class YoloLoss(nn.Module):
         # Class Loss
         # 왜 long 형으로 변환?
         class_loss = self.entropy(
-            (prediction[..., 5][obj]), (target[..., 5][obj].long()),
+            (prediction[..., 5:][obj]), (target[..., 5][obj].long()),
         )
 
         return(
