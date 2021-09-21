@@ -42,7 +42,9 @@ class CNNBlock(nn.Module):
 
     def forward(self, x):
         if self.use_bn_act:
-            return self.leaky(self.bn(self.conv(x)))
+            a = self.conv(x)
+            b = self.bn(a)
+            return self.leaky(b)
         else:
             return self.conv(x)
 
