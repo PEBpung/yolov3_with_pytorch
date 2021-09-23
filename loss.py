@@ -47,6 +47,7 @@ class YoloLoss(nn.Module):
             (prediction[..., 5:][obj]), (target[..., 5][obj].long()),
         )
 
+        # multi loss 구현
         return(
             self.lambda_box * box_loss 
             + self.lambda_obj * object_loss
